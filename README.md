@@ -1,44 +1,59 @@
-# SAM-DeepLearning-CourseDesign
+# SAM-CourseDesign
 
-本项目为《机器学习与深度学习》课程设计项目，主题为 **锐度感知最小化优化算法（Sharpness-Aware Minimization, SAM）的实现与分析**。
+本项目为《机器学习与深度学习》课程设计项目，选题为 **新型优化算法的实现与分析**。项目围绕图像分类任务，重点实现锐度感知最小化优化算法 **Sharpness-Aware Minimization, SAM**，并与经典优化算法 **SGD** 和 **Adam** 进行实验比较。在完成基础对比实验后，进一步对不同优化算法进行参数调优，并尝试对 SAM 优化算法进行改进。
 
-项目基于 PyTorch 框架，在 CIFAR-10 图像分类任务上实现并比较三种优化方法：**SGD、Adam 和 SAM**。通过训练损失、测试准确率、收敛速度和训练时间等指标，分析不同优化算法对模型训练效果和泛化能力的影响。
+本项目主要分为三个阶段：
 
----
-
-## 1. 项目简介
-
-深度神经网络的训练效果不仅与网络结构有关，也与优化算法密切相关。传统优化算法如 SGD 和 Adam 主要关注降低训练集上的损失函数值，但模型在训练集上表现良好并不一定意味着具有良好的泛化能力。
-
-SAM 优化算法的核心思想是：不仅要寻找损失较低的参数点，还希望该参数点附近的损失也较低。换言之，SAM 倾向于寻找更加“平坦”的极小值区域，从而提升模型在测试集上的泛化能力。
-
-本项目主要完成以下工作：
-
-1. 搭建图像分类训练框架；
-2. 实现 SimpleCNN 和 ResNet18 网络模型；
-3. 实现 SGD、Adam 和 SAM 优化器训练流程；
-4. 在 CIFAR-10 数据集上进行对比实验；
-5. 分析不同优化算法的训练效果和泛化性能；
-6. 探究 SAM 中扰动半径参数 `rho` 对实验结果的影响。
+1. **基础对比阶段**：实现并比较 SGD、Adam 和 SAM 三种优化算法；
+2. **参数调优阶段**：分析不同学习率、动量参数和 SAM 扰动半径 `rho` 对模型性能的影响；
+3. **SAM 改进阶段**：尝试设计改进版 SAM，并与原始 SAM 进行对比分析。
 
 ---
 
-## 2. 项目目录结构
+## 1. 项目背景
 
-```text
-DL-SAM-Optimizer/
+深度神经网络的训练效果不仅依赖于模型结构和数据集，也与优化算法密切相关。SGD 和 Adam 是深度学习中常用的经典优化方法，其中 SGD 具有较好的泛化能力，Adam 具有较快的收敛速度。
+
+SAM 是一种面向模型泛化能力的新型优化算法。普通优化算法通常直接最小化当前参数位置的训练损失，而 SAM 不仅关注当前参数点的损失，还关注参数邻域内的最大损失。它希望模型收敛到更加平坦的极小值区域，从而提高模型在测试集上的泛化能力。
+
+本项目以图像分类任务为实验场景，在相同网络结构和相同数据集上对比 SGD、Adam 和 SAM 的表现，并进一步研究 SAM 参数设置和改进策略对模型性能的影响。
+
+---
+
+## 2. 项目目标
+
+本课程设计的主要目标如下：
+
+1. 实现 CIFAR-10 图像分类训练流程；
+2. 实现 ResNet18 图像分类模型；
+3. 实现并比较 SGD、Adam 和 SAM 三种优化算法；
+4. 对不同优化算法进行参数调优；
+5. 分析不同优化算法在训练损失、测试准确率、收敛速度和训练时间方面的差异；
+6. 探究 SAM 中扰动半径 `rho` 对模型泛化能力的影响；
+7. 尝试对 SAM 优化算法进行改进；
+8. 通过实验结果给出合理、可靠的分析结论。
+
+---
+
+## 3. 项目目录结构
+
+```text id="a8tkj5"
+SAM-CourseDesign/
 ├── README.md
 ├── requirements.txt
 ├── train.py
+├── run_experiments.py
 ├── models/
-│   ├── simple_cnn.py
 │   └── resnet.py
 ├── optim/
-│   └── sam.py
+│   ├── sam.py
+│   └── improved_sam.py
 ├── utils/
 │   ├── dataset.py
 │   ├── train_utils.py
+│   ├── logger.py
 │   └── plot.py
+├── data/
 ├── results/
 │   ├── logs/
 │   ├── figures/
@@ -47,53 +62,53 @@ DL-SAM-Optimizer/
     └── course_design_report.pdf
 ```
 
-各目录说明如下：
+目录说明：
 
-| 路径                 | 说明                               |
-| ------------------ | -------------------------------- |
-| `train.py`         | 主训练程序，用于启动不同模型和优化器实验             |
-| `models/`          | 存放网络模型代码，包括 SimpleCNN 和 ResNet18 |
-| `optim/`           | 存放 SAM 优化器实现                     |
-| `utils/`           | 存放数据集加载、训练辅助函数和绘图工具              |
-| `results/logs/`    | 保存训练日志                           |
-| `results/figures/` | 保存损失曲线、准确率曲线等实验图像                |
-| `results/tables/`  | 保存实验结果表格                         |
-| `report/`          | 存放课程设计报告                         |
+| 路径                      | 说明            |
+| ----------------------- | ------------- |
+| `README.md`             | 项目说明文档        |
+| `requirements.txt`      | 项目依赖文件        |
+| `train.py`              | 单次实验训练脚本      |
+| `run_experiments.py`    | 批量运行实验脚本      |
+| `models/resnet.py`      | ResNet18 模型定义 |
+| `optim/sam.py`          | 原始 SAM 优化器实现  |
+| `optim/improved_sam.py` | 改进版 SAM 优化器实现 |
+| `utils/dataset.py`      | 数据集加载与预处理     |
+| `utils/train_utils.py`  | 训练与测试函数       |
+| `utils/logger.py`       | 实验日志保存工具      |
+| `utils/plot.py`         | 实验结果绘图工具      |
+| `data/`                 | 数据集目录         |
+| `results/logs/`         | 训练日志保存目录      |
+| `results/figures/`      | 实验图像保存目录      |
+| `results/tables/`       | 实验结果表格保存目录    |
+| `report/`               | 课程设计报告目录      |
 
 ---
 
-## 3. 实验环境
+## 4. 实验环境
 
-本项目建议使用 Python 3.8 及以上版本，主要依赖如下：
+本项目基于 PyTorch 实现，推荐使用 Python 3.8 及以上版本。
 
-```text
+主要依赖如下：
+
+```text id="u68bhe"
 torch
 torchvision
 numpy
 matplotlib
-tqdm
 pandas
+tqdm
 ```
-
-推荐环境：
-
-| 项目          | 版本                 |
-| ----------- | ------------------ |
-| Python      | 3.8+               |
-| PyTorch     | 2.0+               |
-| torchvision | 0.15+              |
-| CUDA        | 可选                 |
-| 操作系统        | Windows / Linux 均可 |
 
 安装依赖：
 
-```bash
+```bash id="q93m1z"
 pip install -r requirements.txt
 ```
 
-如果使用 Anaconda，也可以新建虚拟环境：
+如果使用 Anaconda，可以创建独立环境：
 
-```bash
+```bash id="lk4kkc"
 conda create -n sam-course python=3.9
 conda activate sam-course
 pip install -r requirements.txt
@@ -101,176 +116,307 @@ pip install -r requirements.txt
 
 ---
 
-## 4. 数据集说明
+## 5. 数据集说明
 
 本项目使用 **CIFAR-10** 数据集。
 
-CIFAR-10 是一个常用的图像分类数据集，共包含 10 个类别，每张图像大小为 32×32。程序运行时会通过 `torchvision.datasets.CIFAR10` 自动下载数据集。
+CIFAR-10 是常用的图像分类数据集，共包含 10 个类别，每张图像大小为 32×32。程序运行时会通过 `torchvision.datasets.CIFAR10` 自动下载数据集。
 
 数据集默认保存路径为：
 
-```text
+```text id="lul6kw"
 ./data/
 ```
 
-如果数据集已经下载过，程序会自动读取本地数据，不会重复下载。
+---
+
+## 6. 模型结构
+
+本项目使用 ResNet18 作为主要实验模型。
+
+由于 CIFAR-10 图像尺寸为 32×32，项目中会对原始 ResNet18 进行适配：
+
+1. 将第一层卷积由 `7×7, stride=2` 改为 `3×3, stride=1`；
+2. 移除原始 ResNet18 中的最大池化层；
+3. 将最后的全连接层输出类别数改为 10。
+
+这样可以使 ResNet18 更适合 CIFAR-10 图像分类任务。
 
 ---
 
-## 5. 运行方法
+## 7. 实验设计
 
-### 5.1 使用 SGD 训练模型
+本项目实验分为三个阶段。
 
-```bash
-python train.py --dataset cifar10 --model resnet18 --optimizer sgd --epochs 20 --batch_size 128 --lr 0.1
-```
+---
 
-### 5.2 使用 Adam 训练模型
+### 7.1 第一阶段：SGD、Adam 与 SAM 基础对比
 
-```bash
-python train.py --dataset cifar10 --model resnet18 --optimizer adam --epochs 20 --batch_size 128 --lr 0.001
-```
+第一阶段主要实现并比较三种优化算法：
 
-### 5.3 使用 SAM 训练模型
+| 实验编号 | 数据集      | 模型       | 优化器  |
+| ---- | -------- | -------- | ---- |
+| Exp1 | CIFAR-10 | ResNet18 | SGD  |
+| Exp2 | CIFAR-10 | ResNet18 | Adam |
+| Exp3 | CIFAR-10 | ResNet18 | SAM  |
 
-```bash
-python train.py --dataset cifar10 --model resnet18 --optimizer sam --epochs 20 --batch_size 128 --lr 0.1 --rho 0.05
-```
+该阶段主要回答以下问题：
 
-### 5.4 测试不同 rho 参数
+1. SAM 是否能够在测试集上取得更好的准确率？
+2. SGD、Adam 和 SAM 的收敛速度有什么差异？
+3. SAM 的训练时间是否明显高于 SGD 和 Adam？
+4. SAM 是否能提升模型泛化能力？
 
-```bash
-python train.py --dataset cifar10 --model resnet18 --optimizer sam --epochs 20 --batch_size 128 --lr 0.1 --rho 0.01
+运行示例：
 
-python train.py --dataset cifar10 --model resnet18 --optimizer sam --epochs 20 --batch_size 128 --lr 0.1 --rho 0.05
+```bash id="edkoln"
+python train.py --optimizer sgd --epochs 20 --batch_size 128 --lr 0.1
 
-python train.py --dataset cifar10 --model resnet18 --optimizer sam --epochs 20 --batch_size 128 --lr 0.1 --rho 0.1
+python train.py --optimizer adam --epochs 20 --batch_size 128 --lr 0.001
+
+python train.py --optimizer sam --epochs 20 --batch_size 128 --lr 0.1 --rho 0.05
 ```
 
 ---
 
-## 6. 实验内容
+### 7.2 第二阶段：优化算法参数调优
 
-本项目计划完成以下实验：
+第二阶段主要对不同优化算法进行参数调优。
 
-### 6.1 不同优化器对比实验
+对于 SGD，主要分析学习率和动量参数的影响：
 
-在相同数据集、相同模型结构和相同训练轮数下，对比以下优化算法：
+| 实验编号 | 优化器 | 学习率  | 动量  |
+| ---- | --- | ---- | --- |
+| Exp4 | SGD | 0.01 | 0.9 |
+| Exp5 | SGD | 0.1  | 0.9 |
+| Exp6 | SGD | 0.1  | 0.5 |
 
-| 优化器  | 说明           |
-| ---- | ------------ |
-| SGD  | 经典随机梯度下降优化算法 |
-| Adam | 自适应学习率优化算法   |
-| SAM  | 锐度感知最小化优化算法  |
+对于 Adam，主要分析学习率的影响：
 
-主要比较指标包括：
+| 实验编号 | 优化器  | 学习率    |
+| ---- | ---- | ------ |
+| Exp7 | Adam | 0.001  |
+| Exp8 | Adam | 0.0005 |
+| Exp9 | Adam | 0.0001 |
 
-1. 训练损失；
-2. 测试损失；
-3. 训练准确率；
-4. 测试准确率；
-5. 最佳测试准确率；
-6. 训练时间。
+对于 SAM，主要分析扰动半径 `rho` 的影响：
 
-### 6.2 SAM 参数分析实验
+| 实验编号  | 优化器 | 学习率 | rho  |
+| ----- | --- | --- | ---- |
+| Exp10 | SAM | 0.1 | 0.01 |
+| Exp11 | SAM | 0.1 | 0.05 |
+| Exp12 | SAM | 0.1 | 0.10 |
 
-SAM 中的重要参数为 `rho`，表示参数扰动半径。本项目将比较不同 `rho` 取值对模型性能的影响：
+该阶段主要回答以下问题：
 
-```text
-rho = 0.01
-rho = 0.05
-rho = 0.10
+1. 不同学习率对模型收敛速度和最终准确率有什么影响？
+2. SGD 中动量参数如何影响训练稳定性？
+3. SAM 中 `rho` 参数过大或过小时会产生什么影响？
+4. 哪一组参数能取得较好的综合表现？
+
+运行示例：
+
+```bash id="y5q0ax"
+python train.py --optimizer sam --epochs 20 --batch_size 128 --lr 0.1 --rho 0.01
+
+python train.py --optimizer sam --epochs 20 --batch_size 128 --lr 0.1 --rho 0.05
+
+python train.py --optimizer sam --epochs 20 --batch_size 128 --lr 0.1 --rho 0.10
 ```
-
-通过实验分析 `rho` 过小、适中和过大时对模型训练稳定性和泛化性能的影响。
-
-### 6.3 不同模型结构对比实验
-
-为了进一步分析 SAM 的适用性，本项目计划在两种模型上进行实验：
-
-| 模型        | 说明       |
-| --------- | -------- |
-| SimpleCNN | 简单卷积神经网络 |
-| ResNet18  | 残差神经网络   |
-
-通过比较不同模型下 SAM 的表现，分析 SAM 是否在不同网络结构中都能带来泛化能力提升。
 
 ---
 
-## 7. 实验结果保存
+### 7.3 第三阶段：SAM 优化算法改进
 
-训练完成后，程序会自动保存实验结果。
+第三阶段尝试对原始 SAM 优化算法进行改进。
+
+原始 SAM 使用固定的扰动半径 `rho`。但是在训练的不同阶段，模型对扰动强度的需求可能不同。训练前期模型参数尚未稳定，如果扰动半径过大，可能影响收敛；训练后期模型逐渐收敛，适当增强对平坦极小值的约束，可能有助于提升泛化能力。
+
+因此，本项目计划尝试一种基于动态扰动半径的改进方法，即 **Warmup-SAM**。
+
+Warmup-SAM 的基本思想是：
+
+1. 训练前期使用较小的 `rho`；
+2. 随着 epoch 增加，逐渐增大 `rho`；
+3. 当达到设定最大值后，保持 `rho` 不变。
+
+动态 `rho` 的设置方式如下：
+
+```text id="hw3vni"
+rho_t = rho_min + (rho_max - rho_min) * t / T_warmup
+```
+
+其中：
+
+```text id="dx1eq8"
+rho_min = 0.01
+rho_max = 0.05
+T_warmup = 训练总 epoch 数的 30%
+```
+
+当训练轮数超过 `T_warmup` 后：
+
+```text id="drrs01"
+rho_t = rho_max
+```
+
+第三阶段将比较：
+
+| 实验编号  | 数据集      | 模型       | 优化器        |
+| ----- | -------- | -------- | ---------- |
+| Exp13 | CIFAR-10 | ResNet18 | SGD        |
+| Exp14 | CIFAR-10 | ResNet18 | SAM        |
+| Exp15 | CIFAR-10 | ResNet18 | Warmup-SAM |
+
+该阶段主要回答以下问题：
+
+1. 改进版 Warmup-SAM 是否优于原始 SAM？
+2. 动态扰动半径是否能提升训练稳定性？
+3. Warmup-SAM 是否能在准确率和训练时间之间取得更好的平衡？
+4. 改进方法是否具有合理性？
+
+运行示例：
+
+```bash id="o8724w"
+python train.py --optimizer sam --epochs 20 --batch_size 128 --lr 0.1 --rho 0.05
+
+python train.py --optimizer warmup_sam --epochs 20 --batch_size 128 --lr 0.1 --rho_min 0.01 --rho_max 0.05
+```
+
+---
+
+## 8. 评价指标
+
+实验主要从以下几个方面进行评价：
+
+| 指标            | 说明           |
+| ------------- | ------------ |
+| Train Loss    | 训练集损失        |
+| Train Acc     | 训练集准确率       |
+| Test Loss     | 测试集损失        |
+| Test Acc      | 测试集准确率       |
+| Best Test Acc | 训练过程中最高测试准确率 |
+| Epoch Time    | 单轮训练时间       |
+| Total Time    | 总训练时间        |
+
+通过这些指标，可以综合分析不同优化算法的收敛速度、分类性能、泛化能力和训练成本。
+
+---
+
+## 9. 输出结果
+
+每次实验结束后，程序会保存训练日志、实验曲线和结果表格。
 
 日志文件保存到：
 
-```text
+```text id="pw5twk"
 results/logs/
 ```
 
-训练曲线保存到：
+图像文件保存到：
 
-```text
+```text id="q44ms7"
 results/figures/
 ```
 
-实验表格保存到：
+结果表格保存到：
 
-```text
+```text id="0thvdm"
 results/tables/
 ```
 
-示例输出包括：
+示例输出：
 
-```text
-results/logs/resnet18_sgd_cifar10.log
-results/logs/resnet18_adam_cifar10.log
-results/logs/resnet18_sam_cifar10_rho0.05.log
+```text id="bl1skk"
+results/logs/resnet18_cifar10_sgd.csv
+results/logs/resnet18_cifar10_adam.csv
+results/logs/resnet18_cifar10_sam_rho0.05.csv
+results/logs/resnet18_cifar10_warmup_sam.csv
 
-results/figures/loss_curve.png
-results/figures/accuracy_curve.png
+results/figures/loss_comparison.png
+results/figures/accuracy_comparison.png
 results/figures/rho_comparison.png
+results/figures/improved_sam_comparison.png
 
-results/tables/result_summary.csv
+results/tables/baseline_results.csv
+results/tables/rho_results.csv
+results/tables/improved_sam_results.csv
 ```
 
 ---
 
-## 8. 预期实验分析
+## 10. 结果分析计划
 
-本项目希望通过实验回答以下问题：
+课程设计报告中将重点分析以下内容：
 
-1. SAM 是否能够提升模型在测试集上的准确率？
-2. SAM 与 SGD、Adam 相比，收敛速度有什么差异？
-3. SAM 的训练时间是否明显增加？
-4. SAM 中 `rho` 参数如何影响模型性能？
-5. SAM 是否在不同网络结构中都具有较好的效果？
+1. **SGD、Adam 和 SAM 的性能对比**
+   比较三种优化器在测试准确率、训练损失和收敛速度方面的差异。
 
-预期结论是：SAM 由于在训练过程中考虑了参数邻域内的最大损失，可能会获得更好的泛化性能；但由于每次参数更新需要两次前向传播和两次反向传播，因此训练时间通常会高于普通 SGD 和 Adam。
+2. **SAM 的泛化能力分析**
+   分析 SAM 是否能通过寻找更平坦的极小值区域提升测试集表现。
+
+3. **参数调优分析**
+   分析学习率、动量参数和 `rho` 参数对模型训练效果的影响。
+
+4. **SAM 改进方法分析**
+   比较 Warmup-SAM 与原始 SAM 的实验结果，分析动态扰动半径是否有效。
+
+5. **训练成本分析**
+   分析 SAM 和 Warmup-SAM 由于两次前向传播和两次反向传播带来的额外时间开销。
 
 ---
 
-## 9. 课程设计报告
+## 11. 课程设计报告结构
 
-课程设计报告位于：
+最终课程设计报告计划采用小论文形式，主要包括以下部分：
 
-```text
-report/course_design_report.pdf
+```text id="l6vc16"
+摘要
+1 引言
+2 相关工作
+3 方法
+   3.1 图像分类任务与实验模型
+   3.2 SGD 与 Adam 优化算法
+   3.3 SAM 优化算法
+   3.4 改进方法：Warmup-SAM
+4 实验设计
+   4.1 数据集
+   4.2 实验环境
+   4.3 参数设置
+   4.4 评价指标
+5 实验结果与分析
+   5.1 基础优化器对比实验
+   5.2 参数调优实验
+   5.3 SAM 改进实验
+   5.4 训练时间与泛化性能分析
+6 结论
+参考文献
+附录
 ```
 
-报告主要包括以下内容：
+---
 
-1. 摘要；
-2. 引言；
-3. 相关工作；
-4. 方法介绍；
-5. 实验设计；
-6. 实验结果与分析；
-7. 结论；
-8. 参考文献。
+## 12. 后续计划
+
+项目后续开发计划如下：
+
+* [ ] 创建项目目录；
+* [ ] 编写 `requirements.txt`；
+* [ ] 完成 CIFAR-10 数据集加载；
+* [ ] 完成 ResNet18 模型构建；
+* [ ] 完成 SGD 和 Adam 训练流程；
+* [ ] 实现原始 SAM 优化器；
+* [ ] 完成 SGD、Adam、SAM 基础对比实验；
+* [ ] 完成不同优化器参数调优实验；
+* [ ] 实现 Warmup-SAM 改进方法；
+* [ ] 完成原始 SAM 与改进 SAM 的对比实验；
+* [ ] 绘制实验结果曲线；
+* [ ] 整理实验结果表格；
+* [ ] 撰写课程设计报告。
 
 ---
 
-## 10. 参考文献
+## 13. 参考文献
 
 [1] Pierre Foret, Ariel Kleiner, Hossein Mobahi, Behnam Neyshabur.
 Sharpness-Aware Minimization for Efficiently Improving Generalization.
@@ -283,28 +429,3 @@ IEEE Conference on Computer Vision and Pattern Recognition, 2016.
 [3] Alex Krizhevsky.
 Learning Multiple Layers of Features from Tiny Images.
 Technical Report, 2009.
-
----
-
-## 11. 注意事项
-
-1. 第一次运行程序时需要下载 CIFAR-10 数据集，请保持网络连接正常；
-2. 如果没有 GPU，也可以使用 CPU 运行，但训练速度会较慢；
-3. SAM 训练过程比普通优化器更慢，这是因为每次更新需要两次梯度计算；
-4. 为了保证实验结果可复现，建议在程序中固定随机种子；
-5. 最终提交时应包含完整代码、README 文件、实验结果和课程设计报告。
-
----
-
-## 12. 项目状态
-
-当前项目处于课程设计开发阶段，后续将继续完善：
-
-* [ ] 完成数据集加载模块；
-* [ ] 完成 SimpleCNN 模型；
-* [ ] 完成 ResNet18 模型；
-* [ ] 完成 SGD 和 Adam 训练流程；
-* [ ] 实现 SAM 优化器；
-* [ ] 完成实验日志保存；
-* [ ] 完成实验结果绘图；
-* [ ] 完成课程设计报告。
