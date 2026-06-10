@@ -4,6 +4,5 @@ __pycache__/
 # 临时测试文件
 datatest.py
 
-# 数据集文件
+#数据集
 data/
-*gz
