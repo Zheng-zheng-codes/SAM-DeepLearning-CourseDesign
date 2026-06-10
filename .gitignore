@@ -1,0 +1,9 @@
+# Python 缓存
+__pycache__/
+
+# 临时测试文件
+datatest.py
+
+# 数据集文件
+data/
+*gz
