@@ -1,0 +1,7 @@
+stage,model,dataset,optimizer,lr,momentum,weight_decay,rho,epochs,seed,best_test_acc,final_test_acc,total_time,best_model_path
+stage1,resnet18,cifar10,sgd,0.01,0.9,0.0005,,100,42,0.9192,0.9119,3487.277606487274,results/models/stage1_resnet18_cifar10_sgd_lr0.01_ep100_seed42_best.pth
+stage1,resnet18,cifar10,adam,0.01,,0.0005,,100,42,0.719,0.674,3550.4768426418304,results/models/stage1_resnet18_cifar10_adam_lr0.01_ep100_seed42_best.pth
+stage1,resnet18,cifar10,adamw,0.01,,0.0005,,100,42,0.923,0.923,3566.978837966919,results/models/stage1_resnet18_cifar10_adamw_lr0.01_ep100_seed42_best.pth
+stage1,resnet18,cifar10,rmsprop,0.01,0.9,0.0005,,100,42,0.3918,0.303,3541.8921875953674,results/models/stage1_resnet18_cifar10_rmsprop_lr0.01_ep100_seed42_best.pth
+stage1,resnet18,cifar10,adagrad,0.01,,0.0005,,100,42,0.9176,0.9101,3515.702502965927,results/models/stage1_resnet18_cifar10_adagrad_lr0.01_ep100_seed42_best.pth
+stage1,resnet18,cifar10,sam,0.01,0.9,0.0005,0.05,100,42,0.936,0.9358,6030.354311704636,results/models/stage1_resnet18_cifar10_sam_lr0.01_ep100_seed42_rho0.05_best.pth

@@ -8,7 +8,7 @@ import pandas as pd
 import torch
 import torch.nn as nn
 import matplotlib.pyplot as plt
-from torch.optim import SGD, Adam
+from torch.optim import SGD, Adam, AdamW, RMSprop, Adagrad
 
 from models.resnet import get_resnet18
 from optim.sam import SAM
@@ -44,6 +44,14 @@ def build_optimizer(optimizer_name, model, lr, momentum, weight_decay, rho):
 
     In this first-stage experiment, all optimizers use the same learning rate
     by default to satisfy the control-variable principle.
+
+    Supported optimizers:
+        - SGD
+        - Adam
+        - AdamW
+        - RMSprop
+        - Adagrad
+        - SAM
     """
 
     if optimizer_name == "sgd":
@@ -56,6 +64,28 @@ def build_optimizer(optimizer_name, model, lr, momentum, weight_decay, rho):
 
     if optimizer_name == "adam":
         return Adam(
+            model.parameters(),
+            lr=lr,
+            weight_decay=weight_decay
+        )
+
+    if optimizer_name == "adamw":
+        return AdamW(
+            model.parameters(),
+            lr=lr,
+            weight_decay=weight_decay
+        )
+
+    if optimizer_name == "rmsprop":
+        return RMSprop(
+            model.parameters(),
+            lr=lr,
+            momentum=momentum,
+            weight_decay=weight_decay
+        )
+
+    if optimizer_name == "adagrad":
+        return Adagrad(
             model.parameters(),
             lr=lr,
             weight_decay=weight_decay
@@ -84,7 +114,7 @@ def train_one_epoch(model, train_loader, criterion, optimizer, device, optimizer
 
     For SAM:
         First step: move parameters to the adversarial neighborhood.
-        Second step: compute gradient at the perturbed point and update original parameters.
+        Second step: compute gradient at that point and update original parameters.
 
     For fair metric recording:
         The training loss and accuracy are computed using the updated normal model
@@ -213,6 +243,18 @@ def run_one_experiment(optimizer_name, device, args):
         rho=args.rho
     )
 
+    log_name = (
+        f"stage1_resnet18_cifar10_{optimizer_name}"
+        f"_lr{args.lr}"
+        f"_ep{args.epochs}"
+        f"_seed{args.seed}"
+    )
+
+    if optimizer_name == "sam":
+        log_name += f"_rho{args.rho}"
+
+    best_model_path = f"results/models/{log_name}_best.pth"
+
     history = []
     best_test_acc = 0.0
 
@@ -238,13 +280,39 @@ def run_one_experiment(optimizer_name, device, args):
         )
 
         epoch_time = time.time() - epoch_start_time
-        best_test_acc = max(best_test_acc, test_acc)
+
+        if test_acc > best_test_acc:
+            best_test_acc = test_acc
+
+            torch.save(
+                {
+                    "epoch": epoch,
+                    "stage": "stage1",
+                    "model": "resnet18",
+                    "dataset": "cifar10",
+                    "optimizer": optimizer_name,
+                    "model_state_dict": model.state_dict(),
+                    "lr": args.lr,
+                    "momentum": args.momentum if optimizer_name in ["sgd", "rmsprop", "sam"] else None,
+                    "weight_decay": args.weight_decay,
+                    "rho": args.rho if optimizer_name == "sam" else None,
+                    "best_test_acc": best_test_acc,
+                    "seed": args.seed
+                },
+                best_model_path
+            )
+
+            print(
+                f"Saved best model: {best_model_path} "
+                f"(Epoch {epoch}, Best Acc: {best_test_acc * 100:.2f}%)"
+            )
 
         record = {
             "epoch": epoch,
+            "stage": "stage1",
             "optimizer": optimizer_name,
             "lr": args.lr,
-            "momentum": args.momentum if optimizer_name in ["sgd", "sam"] else None,
+            "momentum": args.momentum if optimizer_name in ["sgd", "rmsprop", "sam"] else None,
             "weight_decay": args.weight_decay,
             "rho": args.rho if optimizer_name == "sam" else None,
             "train_loss": train_loss,
@@ -270,32 +338,24 @@ def run_one_experiment(optimizer_name, device, args):
 
     total_time = time.time() - total_start_time
 
-    log_name = (
-        f"resnet18_cifar10_{optimizer_name}"
-        f"_lr{args.lr}"
-        f"_ep{args.epochs}"
-        f"_seed{args.seed}"
-    )
-
-    if optimizer_name == "sam":
-        log_name += f"_rho{args.rho}"
-
     log_path = f"results/logs/{log_name}.csv"
     pd.DataFrame(history).to_csv(log_path, index=False)
 
     summary = {
+        "stage": "stage1",
         "model": "resnet18",
         "dataset": "cifar10",
         "optimizer": optimizer_name,
         "lr": args.lr,
-        "momentum": args.momentum if optimizer_name in ["sgd", "sam"] else None,
+        "momentum": args.momentum if optimizer_name in ["sgd", "rmsprop", "sam"] else None,
         "weight_decay": args.weight_decay,
         "rho": args.rho if optimizer_name == "sam" else None,
         "epochs": args.epochs,
         "seed": args.seed,
         "best_test_acc": best_test_acc,
         "final_test_acc": history[-1]["test_acc"],
-        "total_time": total_time
+        "total_time": total_time,
+        "best_model_path": best_model_path
     }
 
     summary_path = f"results/tables/{log_name}_summary.csv"
@@ -304,6 +364,7 @@ def run_one_experiment(optimizer_name, device, args):
     print(f"\nFinished {optimizer_name.upper()} experiment.")
     print(f"Log saved to: {log_path}")
     print(f"Summary saved to: {summary_path}")
+    print(f"Best model saved to: {best_model_path}")
     print(f"Best test accuracy: {best_test_acc * 100:.2f}%")
     print(f"Final test accuracy: {history[-1]['test_acc'] * 100:.2f}%")
     print(f"Total training time: {total_time:.2f}s")
@@ -355,7 +416,7 @@ def save_total_summary(all_summaries, args):
     """
 
     summary_path = (
-        f"results/tables/baseline_optimizer_comparison"
+        f"results/tables/stage1_optimizer_comparison"
         f"_lr{args.lr}"
         f"_ep{args.epochs}"
         f"_seed{args.seed}.csv"
@@ -365,7 +426,7 @@ def save_total_summary(all_summaries, args):
     df.to_csv(summary_path, index=False)
 
     print(f"\nTotal summary saved to: {summary_path}")
-    print("\nBaseline comparison summary:")
+    print("\nStage1 optimizer comparison summary:")
     print(df)
 
 
@@ -379,13 +440,13 @@ def main():
     parser.add_argument(
         "--optimizers",
         nargs="+",
-        default=["sgd", "adam", "sam"],
-        choices=["sgd", "adam", "sam"],
+        default=["sgd", "adam", "adamw", "rmsprop", "adagrad", "sam"],
+        choices=["sgd", "adam", "adamw", "rmsprop", "adagrad", "sam"],
         help="Optimizers to compare."
     )
 
-    # Default setting for the first-stage fair comparison
-    parser.add_argument("--epochs", type=int, default=20)
+    # Default setting for the expanded first-stage comparison
+    parser.add_argument("--epochs", type=int, default=100)
     parser.add_argument("--batch_size", type=int, default=128)
     parser.add_argument("--lr", type=float, default=0.01)
 
@@ -395,22 +456,23 @@ def main():
 
     parser.add_argument("--seed", type=int, default=42)
 
-    # Use 0 by default for better reproducibility.
-    # You can set it to 2 or 4 if you want faster loading.
-    parser.add_argument("--num_workers", type=int, default=0)
+    # With GPU, you can set num_workers to 2 or 4 for faster data loading.
+    # If there is any dataloader problem, set it back to 0.
+    parser.add_argument("--num_workers", type=int, default=2)
 
     args = parser.parse_args()
 
     os.makedirs("results/logs", exist_ok=True)
     os.makedirs("results/figures", exist_ok=True)
     os.makedirs("results/tables", exist_ok=True)
+    os.makedirs("results/models", exist_ok=True)
 
     set_seed(args.seed)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     print("=" * 80)
-    print("First-stage fair comparison experiment")
+    print("Expanded first-stage optimizer comparison experiment")
     print("=" * 80)
     print(f"Using device: {device}")
     print(f"Optimizers: {args.optimizers}")
@@ -418,9 +480,10 @@ def main():
     print(f"Batch size: {args.batch_size}")
     print(f"Learning rate: {args.lr}")
     print(f"Weight decay: {args.weight_decay}")
-    print(f"Momentum for SGD/SAM: {args.momentum}")
+    print(f"Momentum for SGD/RMSprop/SAM: {args.momentum}")
     print(f"Rho for SAM: {args.rho}")
     print(f"Seed: {args.seed}")
+    print(f"Num workers: {args.num_workers}")
     print("=" * 80)
 
     all_histories = {}
@@ -438,13 +501,13 @@ def main():
 
     save_total_summary(all_summaries, args)
 
-    fig_prefix = f"lr{args.lr}_ep{args.epochs}_seed{args.seed}"
+    fig_prefix = f"stage1_lr{args.lr}_ep{args.epochs}_seed{args.seed}"
 
     plot_metric(
         all_histories=all_histories,
         metric="train_loss",
         ylabel="Train Loss",
-        title="Training Loss Comparison",
+        title="Stage1 Training Loss Comparison",
         save_path=f"results/figures/train_loss_comparison_{fig_prefix}.png"
     )
 
@@ -452,7 +515,7 @@ def main():
         all_histories=all_histories,
         metric="test_loss",
         ylabel="Test Loss",
-        title="Test Loss Comparison",
+        title="Stage1 Test Loss Comparison",
         save_path=f"results/figures/test_loss_comparison_{fig_prefix}.png"
     )
 
@@ -460,7 +523,7 @@ def main():
         all_histories=all_histories,
         metric="train_acc",
         ylabel="Train Accuracy (%)",
-        title="Training Accuracy Comparison",
+        title="Stage1 Training Accuracy Comparison",
         save_path=f"results/figures/train_accuracy_comparison_{fig_prefix}.png"
     )
 
@@ -468,11 +531,11 @@ def main():
         all_histories=all_histories,
         metric="test_acc",
         ylabel="Test Accuracy (%)",
-        title="Test Accuracy Comparison",
+        title="Stage1 Test Accuracy Comparison",
         save_path=f"results/figures/test_accuracy_comparison_{fig_prefix}.png"
     )
 
-    print("\nAll first-stage optimizer comparison experiments finished.")
+    print("\nAll expanded first-stage optimizer comparison experiments finished.")
 
 
 if __name__ == "__main__":

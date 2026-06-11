@@ -4,5 +4,8 @@ __pycache__/
 # 临时测试文件
 datatest.py
 
-#数据集
+# 数据集
 data/
+
+# 模型
+*.pth
