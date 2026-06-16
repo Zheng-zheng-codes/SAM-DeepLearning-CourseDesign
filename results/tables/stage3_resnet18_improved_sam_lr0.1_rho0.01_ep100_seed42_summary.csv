@@ -1,0 +1,2 @@
+optimizer,lr,rho,label,best_epoch,best_test_acc,best_model_path,seed,epochs
+improved_sam,0.1,0.01,"lr=0.1,rho=0.01",85,0.8823,results/models/improved_sam_lr0.1_rho0.01_ep100_seed42_best.pth,42,100

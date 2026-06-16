@@ -1,0 +1,5 @@
+method,best_epoch,best_test_acc,source
+Stage2 SAM Baseline,97,0.9419,results/logs/stage2_resnet18_cifar10_sam_lr0.01_ep100_seed42_rho0.1.csv
+Stage3 Dynamic Rho ImprovedSAM,70,0.9161,results/logs/stage3_resnet18_dynamic_improved_sam_lr0.01_rho0.001-0.05_warm5_ep100_seed42.csv
+Stage4 Dynamic Rho+LR ImprovedSAM,96,0.9377,results/logs/stage4_dynamic_rho_lr_improved_sam_lrC0.01_lrR0.0001-0.012_rhoC0.1_rhoR0.05-0.12_warm5_lrOsc0.02_rhoOsc0.03_ap1.0_seed42_ep100.csv
+"Stage5 Mild Recover Gap-aware Feedback Dynamic Rho+LR ImprovedSAM (init_lr=0.01, init_rho=0.1)",97,0.9412,results/logs/stage5_mild_recover_lr0p01_rho0p1_gap0p05_gpat4_cool5_rec5_ls0p05_s42_ep100.csv

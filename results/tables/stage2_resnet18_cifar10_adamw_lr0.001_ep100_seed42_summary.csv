@@ -1,0 +1,2 @@
+stage,model,dataset,optimizer,lr,momentum,weight_decay,rho,epochs,seed,best_test_acc,final_test_acc,total_time,best_model_path,log_path
+stage2,resnet18,cifar10,adamw,0.001,,0.0005,,100,42,0.9283,0.9275,3939.702696800232,results/models/stage2_resnet18_cifar10_adamw_lr0.001_ep100_seed42_best.pth,results/logs/stage2_resnet18_cifar10_adamw_lr0.001_ep100_seed42.csv

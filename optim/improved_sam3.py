@@ -2,26 +2,25 @@ import torch
 from torch.optim import Optimizer
 
 
-class ImprovedSAM(Optimizer):
+class ImprovedSAM3(Optimizer):
     """
-    Improved SAM optimizer with optional adaptive perturbation and dynamic rho.
+    ImprovedSAM3 optimizer.
+
+    Supports:
+    1. Standard SAM
+    2. Adaptive perturbation
+    3. Dynamic rho
+    4. Dynamic learning rate
+    5. BatchNorm / bias exclusion
+    6. Safe parameter restoration
 
     adaptive=False:
-        standard SAM:
-            e_w = rho * grad / ||grad||
+        e_w = grad * rho / ||grad||
 
-    adaptive=True and adaptive_power=1.0:
-        mild adaptive SAM:
-            norm uses grad * s
-            perturbation uses grad * s
-
-    adaptive=True and adaptive_power=2.0:
-        ASAM-style:
-            norm uses grad * s
-            perturbation uses grad * s^2
-
-    where:
+    adaptive=True:
         s = |w| + eta
+        norm uses grad * s
+        perturbation uses grad * s^adaptive_power
     """
 
     def __init__(
@@ -42,7 +41,7 @@ class ImprovedSAM(Optimizer):
         if eta < 0.0:
             raise ValueError(f"Invalid eta value: {eta}")
 
-        if adaptive_power <= 0:
+        if adaptive_power <= 0.0:
             raise ValueError(f"Invalid adaptive_power value: {adaptive_power}")
 
         defaults = dict(
@@ -57,22 +56,16 @@ class ImprovedSAM(Optimizer):
 
         super().__init__(params, defaults)
 
+        self.rho = rho
         self.base_optimizer = base_optimizer(self.param_groups, **kwargs)
 
-        # Make outer optimizer share param_groups and state with base optimizer.
-        # This is important for momentum / Adam states and checkpoint compatibility.
+        # Share param_groups and state with base optimizer.
         self.param_groups = self.base_optimizer.param_groups
         self.state = self.base_optimizer.state
 
     @staticmethod
     def _is_excluded_param(p):
-        """
-        Usually:
-        - bias is 1-dimensional
-        - BatchNorm weight / bias are also 1-dimensional
-
-        Therefore p.ndim <= 1 is a simple rule to exclude BN/bias.
-        """
+        # Bias and BatchNorm parameters are usually 1-dimensional.
         return p.ndim <= 1
 
     def _first_param_device(self):
@@ -110,7 +103,7 @@ class ImprovedSAM(Optimizer):
                 grad = p.grad
 
                 if grad.is_sparse:
-                    raise RuntimeError("ImprovedSAM does not support sparse gradients.")
+                    raise RuntimeError("ImprovedSAM3 does not support sparse gradients.")
 
                 if adaptive:
                     s = p.detach().abs().add(eta)
@@ -127,7 +120,6 @@ class ImprovedSAM(Optimizer):
     @torch.no_grad()
     def second_step(self, zero_grad=False):
         # Restore all perturbed parameters.
-        # Do not check p.grad here. If first_step perturbed it, it must be restored.
         for group in self.param_groups:
             for p in group["params"]:
                 e_w = self.state[p].pop("sam_e_w", None)
@@ -140,20 +132,9 @@ class ImprovedSAM(Optimizer):
             self.zero_grad(set_to_none=True)
 
     def step(self, closure=None):
-        """
-        Optional closure usage.
-
-        Recommended explicit usage:
-            loss.backward()
-            optimizer.first_step(zero_grad=True)
-
-            loss_second.backward()
-            optimizer.second_step(zero_grad=True)
-        """
-
         if closure is None:
             raise RuntimeError(
-                "ImprovedSAM requires two forward-backward passes. "
+                "ImprovedSAM3 requires two forward-backward passes. "
                 "Use first_step/second_step manually, or pass a closure."
             )
 
@@ -180,7 +161,6 @@ class ImprovedSAM(Optimizer):
             adaptive = group["adaptive"]
             eta = group["eta"]
             exclude_bn_bias = group["exclude_bn_bias"]
-            adaptive_power = group["adaptive_power"]
 
             for p in group["params"]:
                 if p.grad is None:
@@ -192,11 +172,13 @@ class ImprovedSAM(Optimizer):
                 grad = p.grad
 
                 if grad.is_sparse:
-                    raise RuntimeError("ImprovedSAM does not support sparse gradients.")
+                    raise RuntimeError("ImprovedSAM3 does not support sparse gradients.")
 
+                # Norm uses grad * s.
+                # adaptive_power only affects perturbation e_w.
                 if adaptive:
                     s = p.detach().abs().add(eta)
-                    grad = grad * s.pow(adaptive_power)
+                    grad = grad * s
 
                 norm_sq += grad.detach().pow(2).sum().to(shared_device)
 
@@ -205,13 +187,14 @@ class ImprovedSAM(Optimizer):
     def load_state_dict(self, state_dict):
         super().load_state_dict(state_dict)
 
-        # Re-sync base optimizer states.
         self.base_optimizer.param_groups = self.param_groups
         self.base_optimizer.state = self.state
 
     def set_rho(self, rho):
         if rho < 0.0:
             raise ValueError(f"Invalid rho value: {rho}")
+
+        self.rho = rho
 
         for group in self.param_groups:
             group["rho"] = rho
@@ -225,3 +208,13 @@ class ImprovedSAM(Optimizer):
 
         for group in self.param_groups:
             group["eta"] = eta
+
+    def set_lr(self, lr):
+        if lr < 0.0:
+            raise ValueError(f"Invalid lr value: {lr}")
+
+        for group in self.base_optimizer.param_groups:
+            group["lr"] = lr
+
+    def get_lr(self):
+        return self.base_optimizer.param_groups[0]["lr"]

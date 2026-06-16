@@ -36,14 +36,14 @@ def get_cifar10_loaders(batch_size=128, num_workers=2):
     train_dataset = datasets.CIFAR10(
         root="./data",
         train=True,
-        download=False,
+        download=True,
         transform=train_transform
     )
 
     test_dataset = datasets.CIFAR10(
         root="./data",
         train=False,
-        download=False,
+        download=True,
         transform=test_transform
     )
 

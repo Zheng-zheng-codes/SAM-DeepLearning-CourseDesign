@@ -7,6 +7,8 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from torch.optim import SGD, Adam, AdamW, RMSprop, Adagrad
 

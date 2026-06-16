@@ -7,6 +7,8 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from torch.optim import SGD, Adam, AdamW, RMSprop, Adagrad
 
@@ -221,7 +223,7 @@ def plot_single_experiment(history, save_prefix):
 
     # Train loss
     plt.figure(figsize=(8, 6))
-    plt.plot(epochs, train_loss, linewidth=2)
+    plt.plot(epochs, train_loss, marker='o', linewidth=2, markersize=4)
     plt.xlabel("Epoch")
     plt.ylabel("Train Loss")
     plt.title("Train Loss Curve")
@@ -234,7 +236,7 @@ def plot_single_experiment(history, save_prefix):
 
     # Test loss
     plt.figure(figsize=(8, 6))
-    plt.plot(epochs, test_loss, linewidth=2)
+    plt.plot(epochs, test_loss, marker='o', linewidth=2, markersize=4)
     plt.xlabel("Epoch")
     plt.ylabel("Test Loss")
     plt.title("Test Loss Curve")
@@ -247,7 +249,7 @@ def plot_single_experiment(history, save_prefix):
 
     # Train accuracy
     plt.figure(figsize=(8, 6))
-    plt.plot(epochs, train_acc, linewidth=2)
+    plt.plot(epochs, train_acc, marker='o', linewidth=2, markersize=4)
     plt.xlabel("Epoch")
     plt.ylabel("Train Accuracy (%)")
     plt.title("Train Accuracy Curve")
@@ -260,7 +262,7 @@ def plot_single_experiment(history, save_prefix):
 
     # Test accuracy
     plt.figure(figsize=(8, 6))
-    plt.plot(epochs, test_acc, linewidth=2)
+    plt.plot(epochs, test_acc, marker='o', linewidth=2, markersize=4)
     plt.xlabel("Epoch")
     plt.ylabel("Test Accuracy (%)")
     plt.title("Test Accuracy Curve")
@@ -283,8 +285,9 @@ def plot_parameter_comparison(group_histories, metric, ylabel, title, save_path)
     """
 
     plt.figure(figsize=(9, 6))
+    colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
 
-    for label, history in group_histories.items():
+    for idx, (label, history) in enumerate(group_histories.items()):
         epochs = [item["epoch"] for item in history]
         values = [item[metric] for item in history]
 
@@ -294,7 +297,10 @@ def plot_parameter_comparison(group_histories, metric, ylabel, title, save_path)
         plt.plot(
             epochs,
             values,
+            marker='o',
             linewidth=2,
+            markersize=4,
+            color=colors[idx % len(colors)],
             label=label
         )
 
@@ -319,10 +325,11 @@ def save_group_comparison_figures(all_histories):
 
     grouped = {}
 
-    for key, history in all_histories.items():
-        model_name = key["model"]
-        optimizer_name = key["optimizer"]
-        label = key["label"]
+    for item in all_histories:
+        model_name = item["model"]
+        optimizer_name = item["optimizer"]
+        label = item["label"]
+        history = item["history"]
 
         group_key = (model_name, optimizer_name)
 
@@ -418,7 +425,7 @@ def run_one_experiment(model_name, optimizer_name, lr, rho, device, args):
     log_path = f"results/logs/{log_name}.csv"
     summary_path = f"results/tables/{log_name}_summary.csv"
     best_model_path = f"results/models/{log_name}_best.pth"
-    fig_prefix = f"results/figures/stage2_single/{log_name}"
+    
 
     history = []
     best_test_acc = 0.0
@@ -528,10 +535,7 @@ def run_one_experiment(model_name, optimizer_name, lr, rho, device, args):
 
     pd.DataFrame([summary]).to_csv(summary_path, index=False)
 
-    plot_single_experiment(
-        history=history,
-        save_prefix=fig_prefix
-    )
+    # Single-experiment plots disabled. Comparison plots are generated later.
 
     print(f"\nFinished stage2 experiment.")
     print(f"Log saved to: {log_path}")
@@ -655,7 +659,6 @@ def main():
     os.makedirs("results/logs", exist_ok=True)
     os.makedirs("results/tables", exist_ok=True)
     os.makedirs("results/models", exist_ok=True)
-    os.makedirs("results/figures/stage2_single", exist_ok=True)
     os.makedirs("results/figures/stage2_comparison", exist_ok=True)
 
     set_seed(args.seed)
@@ -684,21 +687,31 @@ def main():
     print(f"Total experiments: {len(experiments)}")
     print("=" * 80)
 
-    all_histories = []
+    # Group experiments by (model, optimizer) so we can run
+    # and save comparison plots per optimizer immediately.
+    groups = {}
+    for exp in experiments:
+        key = (exp["model"], exp["optimizer"])
+        groups.setdefault(key, []).append(exp)
+
     all_summaries = []
 
-    for exp in experiments:
-        history, summary = run_one_experiment(
-            model_name=exp["model"],
-            optimizer_name=exp["optimizer"],
-            lr=exp["lr"],
-            rho=exp["rho"],
-            device=device,
-            args=args
-        )
+    for (model_name, optimizer_name), group in groups.items():
+        print(f"\nRunning group: Model={model_name}, Optimizer={optimizer_name} ({len(group)} runs)")
 
-        all_histories.append(
-            {
+        group_items = []
+
+        for exp in group:
+            history, summary = run_one_experiment(
+                model_name=exp["model"],
+                optimizer_name=exp["optimizer"],
+                lr=exp["lr"],
+                rho=exp["rho"],
+                device=device,
+                args=args
+            )
+
+            item = {
                 "model": exp["model"],
                 "optimizer": exp["optimizer"],
                 "lr": exp["lr"],
@@ -706,9 +719,48 @@ def main():
                 "label": exp["label"],
                 "history": history
             }
+
+            group_items.append(item)
+            all_summaries.append(summary)
+
+        # Build dict expected by plot_parameter_comparison: label -> history
+        group_histories = {it["label"]: it["history"] for it in group_items}
+
+        prefix = f"results/figures/stage2_comparison/stage2_{model_name}_{optimizer_name}"
+
+        plot_parameter_comparison(
+            group_histories=group_histories,
+            metric="test_acc",
+            ylabel="Test Accuracy (%)",
+            title=f"{model_name.upper()} {optimizer_name.upper()} Test Accuracy under Different Parameters",
+            save_path=f"{prefix}_test_acc_comparison.png"
         )
 
-        all_summaries.append(summary)
+        plot_parameter_comparison(
+            group_histories=group_histories,
+            metric="test_loss",
+            ylabel="Test Loss",
+            title=f"{model_name.upper()} {optimizer_name.upper()} Test Loss under Different Parameters",
+            save_path=f"{prefix}_test_loss_comparison.png"
+        )
+
+        plot_parameter_comparison(
+            group_histories=group_histories,
+            metric="train_acc",
+            ylabel="Train Accuracy (%)",
+            title=f"{model_name.upper()} {optimizer_name.upper()} Train Accuracy under Different Parameters",
+            save_path=f"{prefix}_train_acc_comparison.png"
+        )
+
+        plot_parameter_comparison(
+            group_histories=group_histories,
+            metric="train_loss",
+            ylabel="Train Loss",
+            title=f"{model_name.upper()} {optimizer_name.upper()} Train Loss under Different Parameters",
+            save_path=f"{prefix}_train_loss_comparison.png"
+        )
+
+        print(f"Saved comparison figures for {model_name} {optimizer_name} to {prefix}_*.png")
 
     summary_all_path = (
         f"results/tables/stage2_tuning_summary_all"
@@ -719,21 +771,6 @@ def main():
     pd.DataFrame(all_summaries).to_csv(summary_all_path, index=False)
 
     print(f"\nAll stage2 summaries saved to: {summary_all_path}")
-
-    # Convert all_histories into dictionary-style items for comparison plotting
-    comparison_items = []
-
-    for item in all_histories:
-        comparison_items.append(
-            {
-                "model": item["model"],
-                "optimizer": item["optimizer"],
-                "label": item["label"],
-                "history": item["history"]
-            }
-        )
-
-    save_group_comparison_figures(comparison_items)
 
     print("\nAll stage2 parameter tuning experiments finished.")
 
