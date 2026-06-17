@@ -447,7 +447,7 @@ results/tables/improved_sam_results.csv
 
 ---
 
-## 13. 参考文献
+## 12. 参考文献
 
 [1] Pierre Foret, Ariel Kleiner, Hossein Mobahi, Behnam Neyshabur.
 Sharpness-Aware Minimization for Efficiently Improving Generalization.
